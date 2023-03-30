@@ -53,7 +53,7 @@ class Detect(Node):
         self.timer_period = self.period_timer_end - self.period_timer_start
         self.fps = 1 / self.timer_period
         self.period_timer_start = time.time()
-        self.get_logger().info('Recieving video frame, current FPS: %s , reformat time: %s' % (self.fps, self.reformat_time))
+        self.get_logger().info('Recieving video frame, current FPS: {:.2f} , reformat time: {:.4f}'.format(self.fps, self.reformat_time))
         current_frame = self.br.imgmsg_to_cv2(data)
 
         if (self.is_first_message):
