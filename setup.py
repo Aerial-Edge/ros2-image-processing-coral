@@ -23,8 +23,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'videostream_handler = img_processing.videostream_handler:main',
-            'detect = img_processing.detect:main',
+            'videostream_node = img_processing.videostream_node:main',
+            'detect_node = img_processing.detect_node:main',
             'testsub = img_processing.testsub:main',
         ],
     },
