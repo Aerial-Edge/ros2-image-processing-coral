@@ -12,11 +12,11 @@ from picamera2 import Picamera2
 
 
 #model ='../../share/img_processing/models/tennis_edgetpu.tflite'
-model ='/home/gruppe6/models/edl0.tflite'
-#tpu_interpreter = tflite.Interpreter(model, experimental_delegates=[
-#    tflite.load_delegate('libedgetpu.so.1.0')])
+model ='/home/gruppe6/models/edl0_edgetpu.tflite'
+tpu_interpreter = tflite.Interpreter(model, experimental_delegates=[
+    tflite.load_delegate('libedgetpu.so.1.0')])
 cpu_interpreter = tflite.Interpreter(model)
-threshold = 0.4
+threshold = 0.75
 
 
 class Detect(Node):
@@ -26,39 +26,28 @@ class Detect(Node):
         self.subscription
         self.publisher = self.create_publisher(Int32MultiArray, 'object_pos_and_distance', 10)
         self.br = CvBridge()
-        self.interpreter = cpu_interpreter
+        self.interpreter = tpu_interpreter
         self.interpreter.allocate_tensors()
         self.input_details = self.interpreter.get_input_details()
         self.output_details = self.interpreter.get_output_details()
-        #self.cap = cv2.VideoCapture(0)
-        #self.ret, self.current_frame_raw = self.cap.read()
-        #self.raw_height, self.raw_width, _ = self.current_frame_raw.shape
-        self.is_first_message = True
-        self.frame_count = 0
         self.period_timer_start = time.time()
         self.period_timer_end = time.time()
         self.fps = 0
+        self.focal_length = 847 # pi camera 2
+        self.ball_real_diameter = 6.5 # cm
         
 
         
 
     def listener_callback(self, data):
-        self.frame_count += 1
         self.period_timer_end = time.time()
         self.timer_period = self.period_timer_end - self.period_timer_start
         self.fps = 1 / self.timer_period
         self.period_timer_start = time.time()
         self.get_logger().info('Recieving video frame, current FPS: {:.2f}'.format(self.fps))
         current_frame = self.br.imgmsg_to_cv2(data)
-
-        if (self.is_first_message):
-            self.raw_height, self.raw_width, _ = current_frame.shape
-            self.is_first_message = False
         
         
-        #Reformat input data
-        #current_frame_rgb = cv2.cvtColor(current_frame, cv2.COLOR_BGR2RGB)
-        #current_frame_resized = cv2.resize(current_frame_rgb, (self.input_details[0]['shape'][2], self.input_details[0]['shape'][1]))
         input_data = np.expand_dims(current_frame, axis=0)
 
 
@@ -95,10 +84,11 @@ class Detect(Node):
                 w, h = x2 - x1, y2 - y1
                 cx, cy = (int(x1 + 0.5*w),int(y1+0.5*h))
                 box_diagonal_length = int(np.sqrt(w**2 + h**2))
+                dist = int((self.ball_real_diameter * self.focal_length) / w) # distance in cm
 
 
                 msg = Int32MultiArray()
-                msg.data = [cx, cy, box_diagonal_length]
+                msg.data = [cx, cy, dist]
                 self.publisher.publish(msg)
 
 
