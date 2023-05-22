@@ -56,6 +56,8 @@ class Detect(Node):
         self.focal_length_multiplier = 847 # pi camera 2
 
         self.ball_real_diameter = 6.5 # cm
+
+        self.dist_multiplier = self.focal_length_multiplier * self.ball_real_diameter
         # ROS2 message type, used to publish to 'object pos and distance'
         self.output_array = Int32MultiArray()
 
@@ -98,7 +100,10 @@ class Detect(Node):
         boxes = self.interpreter.get_tensor(self.output_details[1]['index'])[0]
         scores = self.interpreter.get_tensor(self.output_details[0]['index'])[0]
 
-
+        cx_out = -1
+        cy_out = -1
+        distance_out = -1
+        best_score = 0
 
 
         # Loop over all detections
@@ -112,15 +117,23 @@ class Detect(Node):
                 # Get center of bounding box
                 cx, cy = (int(x1 + 0.5*w),int(y1+0.5*h))
 
+                # Only send info on the best score
+                if (scores[i] > best_score):
+                    best_score = scores[i]
+                    cx_out = cx
+                    cy_out = cy
+                    distance_out = int((self.dist_multiplier)/w)
+
                 # Because distance calculation is based on width, we need to discard
                 # detections at the left and right edges as the width may be cropped
                 if (self.constrain_detection(cx, self.width, 30)):
                     dist = int((self.ball_real_diameter * self.focal_length_multiplier) / w)
-                    self.output_array.data = [cx, cy, dist]
+                    self.output_array.data = [cx_out, cy_out, distance_out]
                     self.publisher.publish(self.output_array)
                 else:
-                    self.output_array.data = [cx, cy, -1]
+                    self.output_array.data = [cx_out, cy_out, -1]
                     self.publisher.publish(self.output_array)
+            # No detections
             else:
                 self.output_array.data = [-1, -1, -1]
                 self.publisher.publish(self.output_array)
